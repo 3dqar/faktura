@@ -221,7 +221,7 @@
 
   <div class="actions">
     <button class="btn-sec" id="btn-preview" onclick="openPreview()">Peržiūrėti</button>
-    <button class="btn-pri" id="btn-pdf" onclick="printPDF()">↓ Išsaugoti PDF</button>
+    <button class="btn-pri" id="btn-pdf" onclick="downloadPDF()">↓ Išsaugoti PDF</button>
   </div>
 </div>
 
@@ -235,7 +235,7 @@
     <div class="modal-body inv" id="invoice-preview"></div>
     <div class="modal-actions">
       <button class="btn-sec" id="modal-close-btn" onclick="closePreview()">Uždaryti</button>
-      <button class="btn-pri" onclick="printPDF()">↓ Išsaugoti PDF</button>
+      <button class="btn-pri" onclick="downloadPDF()">↓ Išsaugoti PDF</button>
     </div>
   </div>
 </div>
@@ -496,50 +496,105 @@ function openPreview() {
 function closePreview() { document.getElementById('modal').classList.remove('open'); }
 function closeOnBg(e) { if (e.target === document.getElementById('modal')) closePreview(); }
 
-function printPDF() {
+function getInvoiceStyles() {
+  return `
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, Helvetica, sans-serif; color: #1a1a18; padding: 40px 48px; max-width: 780px; margin: 0 auto; }
+    .inv-title { font-size: 28px; font-weight: 700; color: #2d5a3d; }
+    .inv-sub { font-size: 13px; color: #6b6b64; margin-top: 4px; }
+    .inv-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 26px; }
+    .inv-meta { font-size: 12px; color: #6b6b64; line-height: 1.8; text-align: right; }
+    .inv-meta strong { color: #1a1a18; }
+    .inv-seller { margin-bottom: 20px; }
+    .inv-seller-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: #6b6b64; margin-bottom: 5px; }
+    .inv-seller p { font-size: 13px; line-height: 1.7; }
+    .inv-table { width: 100%; border-collapse: collapse; }
+    .inv-table thead tr { border-bottom: 2px solid #1a1a18; }
+    .inv-table th { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #6b6b64; padding: 7px 10px; text-align: left; }
+    .inv-table th:last-child, .inv-table td:last-child { text-align: right; }
+    .inv-table td { padding: 9px 10px; font-size: 13px; border-bottom: 1px solid #e8e6e0; }
+    .inv-table tbody tr:last-child td { border-bottom: none; }
+    .inv-table .nr { color: #6b6b64; width: 28px; text-align: center; }
+    .inv-totals-area { display: flex; justify-content: flex-end; margin-top: 14px; }
+    .inv-totals { width: 230px; }
+    .inv-tot-row { display: flex; justify-content: space-between; font-size: 13px; padding: 3px 0; color: #6b6b64; }
+    .inv-tot-row span:last-child { color: #1a1a18; font-weight: 700; }
+    .inv-tot-divider { border: none; border-top: 1px solid #dddbd4; margin: 7px 0; }
+    .inv-tot-grand { display: flex; justify-content: space-between; font-size: 18px; padding: 3px 0; font-weight: 700; }
+    .inv-tot-grand span:last-child { color: #2d5a3d; }
+    .inv-bank { margin-top: 26px; padding: 14px 16px; background: #f5f3ee; border-radius: 8px; font-size: 13px; }
+    .inv-bank-title { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: #6b6b64; margin-bottom: 6px; }
+    .inv-bank-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+    .inv-bank-field label { font-size: 11px; color: #6b6b64; display: block; }
+    .inv-bank-field span { font-size: 13px; font-weight: 700; }
+    .inv-notes { margin-top: 18px; font-size: 12px; color: #6b6b64; border-top: 1px solid #dddbd4; padding-top: 11px; line-height: 1.7; }
+    .inv-footer { margin-top: 30px; font-size: 11px; color: #aaa9a2; text-align: center; }
+  `;
+}
+
+function downloadPDF() {
   const t = T[lang];
-  const html = buildInvoiceHTML();
-  const w = window.open('', '_blank');
-  w.document.write(`<!DOCTYPE html><html><head>
-    <meta charset="UTF-8">
-    <title>${t.docTitle} ${v('inv-nr')}</title>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-    <style>
-      * { box-sizing: border-box; margin: 0; padding: 0; }
-      body { font-family: 'DM Sans', sans-serif; color: #1a1a18; padding: 48px 52px; max-width: 780px; margin: 0 auto; }
-      .inv-title { font-family: 'DM Serif Display', serif; font-size: 30px; font-weight: 400; color: #2d5a3d; }
-      .inv-sub { font-size: 13px; color: #6b6b64; margin-top: 4px; }
-      .inv-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 26px; }
-      .inv-meta { font-size: 12px; color: #6b6b64; line-height: 1.8; text-align: right; }
-      .inv-meta strong { color: #1a1a18; }
-      .inv-seller { margin-bottom: 20px; }
-      .inv-seller-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: #6b6b64; margin-bottom: 5px; }
-      .inv-seller p { font-size: 13px; line-height: 1.7; }
-      .inv-table { width: 100%; border-collapse: collapse; }
-      .inv-table thead tr { border-bottom: 2px solid #1a1a18; }
-      .inv-table th { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; color: #6b6b64; padding: 7px 10px; text-align: left; }
-      .inv-table th:last-child, .inv-table td:last-child { text-align: right; }
-      .inv-table td { padding: 9px 10px; font-size: 13px; border-bottom: 1px solid #e8e6e0; }
-      .inv-table tbody tr:last-child td { border-bottom: none; }
-      .inv-table .nr { color: #6b6b64; width: 28px; text-align: center; }
-      .inv-totals-area { display: flex; justify-content: flex-end; margin-top: 14px; }
-      .inv-totals { width: 230px; }
-      .inv-tot-row { display: flex; justify-content: space-between; font-size: 13px; padding: 3px 0; color: #6b6b64; }
-      .inv-tot-row span:last-child { color: #1a1a18; font-weight: 500; }
-      .inv-tot-divider { border: none; border-top: 1px solid #dddbd4; margin: 7px 0; }
-      .inv-tot-grand { display: flex; justify-content: space-between; font-size: 18px; padding: 3px 0; }
-      .inv-tot-grand span:last-child { font-weight: 500; color: #2d5a3d; }
-      .inv-bank { margin-top: 26px; padding: 14px 16px; background: #f5f3ee; border-radius: 8px; font-size: 13px; }
-      .inv-bank-title { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: #6b6b64; margin-bottom: 6px; }
-      .inv-bank-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
-      .inv-bank-field label { font-size: 11px; color: #6b6b64; display: block; }
-      .inv-bank-field span { font-size: 13px; font-weight: 500; }
-      .inv-notes { margin-top: 18px; font-size: 12px; color: #6b6b64; border-top: 1px solid #dddbd4; padding-top: 11px; line-height: 1.7; }
-      .inv-footer { margin-top: 30px; font-size: 11px; color: #aaa9a2; text-align: center; }
-      @media print { body { padding: 30px 38px; } }
-    </style>
-  </head><body>${html}<script>window.onload=()=>{ setTimeout(()=>window.print(),400); }<\/script></body></html>`);
-  w.document.close();
+  const filename = (t.docTitle + '_' + v('inv-nr')).replace(/\s+/g, '_') + '.pdf';
+  const btn = document.getElementById('btn-pdf');
+  btn.textContent = '⏳ Generuojama...';
+  btn.disabled = true;
+
+  const fullHTML = `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>${getInvoiceStyles()}</style></head><body>${buildInvoiceHTML()}</body></html>`;
+
+  const blob = new Blob([fullHTML], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+
+  // Use html2pdf via iframe approach: load jsPDF + html2canvas
+  const script1 = document.createElement('script');
+  script1.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+  script1.onload = () => {
+    const script2 = document.createElement('script');
+    script2.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+    script2.onload = () => {
+      // Create a hidden render container
+      const container = document.createElement('div');
+      container.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;background:#fff;font-family:Arial,sans-serif;color:#1a1a18;padding:40px 48px;box-sizing:border-box;';
+      container.innerHTML = buildInvoiceHTML();
+
+      // Apply inline styles for PDF rendering (no external fonts)
+      const style = document.createElement('style');
+      style.textContent = getInvoiceStyles();
+      container.prepend(style);
+      document.body.appendChild(container);
+
+      html2canvas(container, { scale: 2, useCORS: true, backgroundColor: '#ffffff' }).then(canvas => {
+        document.body.removeChild(container);
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+        const pageW = pdf.internal.pageSize.getWidth();
+        const pageH = pdf.internal.pageSize.getHeight();
+        const imgW = pageW;
+        const imgH = (canvas.height * pageW) / canvas.width;
+        let y = 0;
+        if (imgH <= pageH) {
+          pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, imgW, imgH);
+        } else {
+          // Multi-page
+          while (y < imgH) {
+            const srcY = (y / imgH) * canvas.height;
+            const srcH = Math.min((pageH / imgH) * canvas.height, canvas.height - srcY);
+            const pageCanvas = document.createElement('canvas');
+            pageCanvas.width = canvas.width;
+            pageCanvas.height = srcH;
+            pageCanvas.getContext('2d').drawImage(canvas, 0, srcY, canvas.width, srcH, 0, 0, canvas.width, srcH);
+            if (y > 0) pdf.addPage();
+            pdf.addImage(pageCanvas.toDataURL('image/png'), 'PNG', 0, 0, imgW, (srcH * pageW) / canvas.width);
+            y += pageH;
+          }
+        }
+        pdf.save(filename);
+        btn.textContent = T[lang].btnPdf;
+        btn.disabled = false;
+      });
+    };
+    document.head.appendChild(script2);
+  };
+  document.head.appendChild(script1);
 }
 
 // Init
